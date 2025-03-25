@@ -1,52 +1,80 @@
 CREATE SCHEMA IF NOT EXISTS testMetaSchema;
 
+-- Complete master table with ALL columns
 CREATE TABLE IF NOT EXISTS testMetaSchema.tblMasterTable (
-	id SERIAL PRIMARY KEY,	-- station data
-    stationID INT,
+    id SERIAL PRIMARY KEY,
+    stationID VARCHAR(10),
     timestamp INT NOT NULL,
-	consBatteryVoltage REAL,
-	txBatteryStatus REAL,
-	rxCheckPercent REAL,
-	interval INT,
+    interval INT,
 
-	locationID INT, -- location data
-	locationName VARCHAR(20),
-    altitude REAL,
+    -- Station data
+    consBatteryVoltage REAL,
+    txBatteryStatus REAL,
+    rxCheckPercent REAL,
+    referenceVoltage REAL,
+    supplyVoltage REAL,
+
+    -- Location data
+    locationName VARCHAR(20),
+    altitude REAL, -- Same as altimeter
     latitude REAL,
     longitude REAL,
-	parish VARCHAR(20),
+    parish VARCHAR(20),
 
-	piID	INT, -- pi DATA
-	piIP	VARCHAR(15),
-	lastSync	INT,
-	localMqtt	VARCHAR(20),
-	remoteMqtt	VARCHAR(20),
-	piState		bool,
-	fanState	bool,
-	sleepMode	bool,
+    -- Pi/System data
+    piIP VARCHAR(15),
+    lastSync INT,
+    localMqtt VARCHAR(20),
+    remoteMqtt VARCHAR(20),
+    piState BOOL,
+    fanState BOOL,
+    sleepMode BOOL,
 
-	rainID SERIAL, -- rain data
+    -- Rain and humidity data
     rain REAL,
-	dewPoint REAL,
-	rainRate REAL,
-	evapoTrans REAL,
-	inHumidity REAL,
-	outHumidity REAL,
-	leafWet1 REAL,
+    rainRate REAL,
+    rainBatteryStatus REAL,
+    hail REAL,
+    hailRate REAL,
+    hailBatteryStatus REAL,
+    dewPoint REAL,
+    evapoTrans REAL, -- ET in your dataset
+    inHumidity REAL,
+    outHumidity REAL,
+    leafWet1 REAL,
     leafWet2 REAL,
+    forecast REAL,
 
-	tempID SERIAL,	-- temp data
-    heatIndex REAL,
+    -- Temperature data
     inTemp REAL,
+    inTempBatteryStatus REAL,
     outTemp REAL,
+    outTempBatteryStatus REAL,
+    lowOutTemp REAL,
+    highOutTemp REAL,
     leafTemp1 REAL,
     leafTemp2 REAL,
+    inDewpoint REAL,
+    heatingTemp REAL,
+    heatingVoltage REAL,
 
-	radiationID SERIAL, -- radiation data
+    -- Comfort indices
+    humidex REAL,
+    humidex1 REAL,
+    appTemp REAL,
+    heatIndex REAL,
+    cloudBase REAL,
+
+    -- Radiation data
     radiation REAL,
-	UV REAL,
+    highRadiation REAL,
+    UV REAL,
+    highUV REAL,
+    uvBatteryStatus REAL,
+    maxSolarRad REAL,
+    luminosity REAL,
 
-	soilID SERIAL, -- soil data
+    -- Soil data
     soilMoist1 REAL,
     soilMoist2 REAL,
     soilMoist3 REAL,
@@ -56,115 +84,155 @@ CREATE TABLE IF NOT EXISTS testMetaSchema.tblMasterTable (
     soilTemp3 REAL,
     soilTemp4 REAL,
 
-	windID SERIAL, 	-- wind DATA
-	barometer REAL,
+    -- Wind data
+    barometer REAL, -- Same as pressure
     windchill REAL,
+    windDir REAL,
     windGustDir REAL,
     windGust REAL,
-    windSpeed REAL
+    windSpeed REAL,
+    windrun REAL,
+    windBatteryStatus REAL,
+
+    -- Air quality data
+    so2 REAL,
+    noise REAL,
+
+    -- Lightning data
+    lightningDistance REAL,
+    lightningDisturberCount REAL,
+    lightningEnergy REAL,
+    lightningNoiseCount REAL,
+    lightningStrikeCount REAL
 );
 
-CREATE TABLE IF NOT EXISTS testMetaSchema.tblLocation(
-	locationID INT primary key,
-	stationName VARCHAR(20),
-	stationID int,
-	altitude REAL,
+-- The specialized tables remain unchanged but will pull from master table
+CREATE TABLE IF NOT EXISTS testMetaSchema.tblWeatherStation(
+    stationID VARCHAR(10) PRIMARY KEY,
+    lastSync INT NOT NULL,
+    consBatteryVoltage REAL,
+    rxCheckPercent REAL,
+    txBatteryStatus REAL,
+    referenceVoltage REAL,
+    supplyVoltage REAL,
+    stationName VARCHAR(20),
+    altitude REAL,
     latitude REAL,
     longitude REAL,
-	parish VARCHAR(20)
-);
-
-CREATE TABLE IF NOT EXISTS testMetaSchema.tblWeatherStation(
-	stationID INT PRIMARY KEY,
-    timestamp INT NOT NULL,
-    consBatteryVoltage REAL,
-    rxCheckPercentage REAL,
-    txBatteryStatus REAL
-);
-
-CREATE TABLE IF NOT EXISTS testMetaSchema.tblRaspPi(
-    piID INT PRIMARY KEY,
-	piIP	VARCHAR(15),
-	lastSync	INT,
-	localMqtt	VARCHAR(20),
-	remoteMqtt	VARCHAR(20),
-	piState		bool,
-	fanState	bool,
-	sleepMode	bool
+    parish VARCHAR(20),
+    piIP VARCHAR(15),
+    localMqtt VARCHAR(20),
+    remoteMqtt VARCHAR(20),
+    piState BOOL,
+    fanState BOOL,
+    sleepMode BOOL
 );
 
 CREATE TABLE IF NOT EXISTS testMetaSchema.tblRainData(
-	rainID	INT,
-	timestamp INT NOT NULL,
-	stationID INT NOT NULL,
-	rain REAL,
-	dewPoint REAL,
-	rainRate REAL,
-	evapoTrans REAL,
-	inHumidity REAL,
-	outHumidity REAL,
-	leafWet1 REAL,
+    rainID SERIAL PRIMARY KEY,
+    timestamp INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
+    rain REAL,
+    dewPoint REAL,
+    rainRate REAL,
+    evapoTrans REAL,
+    inHumidity REAL,
+    outHumidity REAL,
+    leafWet1 REAL,
     leafWet2 REAL,
-    foreign key (stationID) references testMetaSchema.tblWeatherStation,
-    foreign key (rainID) references testMetaSchema.tblMasterTable,
-    primary key (rainID,stationID)
+    rainBatteryStatus REAL,
+    hail REAL,
+    hailRate REAL,
+    hailBatteryStatus REAL,
+    forecast REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
 );
 
 CREATE TABLE IF NOT EXISTS testMetaSchema.tblWindData(
-    windID INT,
+    windID SERIAL PRIMARY KEY,
     timestamp INT NOT NULL,
-	stationID INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
     barometer REAL,
     windchill REAL,
     windGustDir REAL,
     windGust REAL,
     windSpeed REAL,
-    foreign key (stationID) references testMetaSchema.tblWeatherStation,
-    foreign key (windID) references testMetaSchema.tblMasterTable,
-    primary key (windID,stationID)
+    windDir REAL,
+    windrun REAL,
+    windBatteryStatus REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
 );
 
 CREATE TABLE IF NOT EXISTS testMetaSchema.tblSoilData(
-    soilID INT,
+    soilID SERIAL PRIMARY KEY,
     timestamp INT NOT NULL,
-    stationID INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
     soilMoist1 REAL,
     soilMoist2 REAL,
     soilMoist3 REAL,
     soilMoist4 REAL,
-    soilTemp1  REAL,
-    soilTemp2  REAL,
-    soilTemp3  REAL,
-    soilTemp4  REAL,
-    foreign key (stationID) references testMetaSchema.tblWeatherStation,
-    foreign key (soilID) references testMetaSchema.tblMasterTable,
-    primary key (soilID,stationID)
+    soilTemp1 REAL,
+    soilTemp2 REAL,
+    soilTemp3 REAL,
+    soilTemp4 REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
 );
 
-CREATE TABLE IF NOT EXISTS testMetaSchema.radiationData(
-    radiationID INT,
+CREATE TABLE IF NOT EXISTS testMetaSchema.tblRadiationData(
+    radiationID SERIAL PRIMARY KEY,
     timestamp INT NOT NULL,
-    stationID INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
     UV REAL,
+    uvBatteryStatus REAL,
     highUV REAL,
     highRadiation REAL,
     radiation REAL,
-    foreign key (stationID) references testMetaSchema.tblWeatherStation,
-    foreign key (radiationID) references testMetaSchema.tblMasterTable,
-    primary key (radiationID,stationID)
+    maxSolarRad REAL,
+    luminosity REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
 );
 
-CREATE TABLE IF NOT EXISTS testMetaSchema.tblTemperature(
-    tempID INT,
+CREATE TABLE IF NOT EXISTS testMetaSchema.tblTempData(
+    tempID SERIAL PRIMARY KEY,
     timestamp INT NOT NULL,
-    stationID INT NOT NULL,
-    intTemp REAL,
+    stationID VARCHAR(10) NOT NULL,
+    inTemp REAL,
+    inTempBatteryStatus REAL,
     outTemp REAL,
+    outTempBatteryStatus REAL,
     lowOutTemp REAL,
     highOutTemp REAL,
     leafTemp1 REAL,
     leafTemp2 REAL,
-    foreign key (stationID) references testMetaSchema.tblWeatherStation,
-    foreign key (tempID) references testMetaSchema.tblMasterTable,
-    primary key (tempID,stationID)
+    inDewpoint REAL,
+    heatingTemp REAL,
+    heatingVoltage REAL,
+    -- Comfort data moved from the deleted comfort table
+    humidex REAL,
+    humidex1 REAL,
+    appTemp REAL,
+    heatIndex REAL,
+    cloudBase REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
+);
+
+CREATE TABLE IF NOT EXISTS testMetaSchema.tblAirQualityData(
+    airQualityID SERIAL PRIMARY KEY,
+    timestamp INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
+    so2 REAL,
+    noise REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
+);
+
+CREATE TABLE IF NOT EXISTS testMetaSchema.tblLightningData(
+    lightningID SERIAL PRIMARY KEY,
+    timestamp INT NOT NULL,
+    stationID VARCHAR(10) NOT NULL,
+    lightningDistance REAL,
+    lightningDisturberCount REAL,
+    lightningEnergy REAL,
+    lightningNoiseCount REAL,
+    lightningStrikeCount REAL,
+    foreign key (stationID) references testMetaSchema.tblWeatherStation
 );
