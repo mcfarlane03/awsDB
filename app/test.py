@@ -1,10 +1,11 @@
+import os
 import psycopg2 
 import numpy as np 
 import psycopg2.extras as extras 
 import pandas as pd 
 
 def execute_values(conn, df, table): 
-  
+
     tuples = [tuple(x) for x in df.to_numpy()] 
 
     cols = ','.join(list(df.columns))
@@ -65,7 +66,6 @@ def populate_tables(conn):
                         SELECT timestamp, stationid, lightningdistance, lightningdisturbercount,
                             lightningenergy, lightningnoisecount, lightningstrikecount
                         FROM testmetaschema.tblmastertable;"""
-
                         ]
 
     alter_statement = """UPDATE testmetaschema.tblweatherstation ws
@@ -114,11 +114,49 @@ def main():
         password="rozWuk-betkuf"
     )
 
-    df = pd.read_csv(r'C:\Users\Lui\OneDrive\Desktop\metProjCSVs\UWIT001_St.Andrew_21-03-2025-07.csv')
-    df = df.rename(columns={'dateTime':'timestamp', 'altimeter': 'altitude', 'ET': 'evapoTrans', 'lightning_distance': 'lightningDistance', 'lightning_energy': 'lightningEnergy', 'lightning_strike_count': 'lightningStrikeCount', 'lightning_disturber_count': 'lightningDisturberCount', 'lightning_noise_count' : 'lightningNoiseCount'})
-    print(df.head())
-    table = 'testMetaSchema.tblMasterTable'
-    execute_values(conn, df, table)
+    # Assign directory
+    directory = r"C:\Users\Lui\OneDrive\Desktop\metProjCSVs"
+
+    # Iterate over files in directory
+    for name in os.listdir(directory):
+        # Open file from directory
+        full_path = os.path.join(directory, name)
+        print(f"Processing file {full_path}")
+
+        try:
+                # Open file from full path
+                df = pd.read_csv(full_path)
+                
+                # Rename columns
+                df = df.rename(columns={
+                    'dateTime': 'timestamp', 
+                    'altimeter': 'altitude', 
+                    'ET': 'evapoTrans', 
+                    'lightning_distance': 'lightningDistance', 
+                    'lightning_energy': 'lightningEnergy', 
+                    'lightning_strike_count': 'lightningStrikeCount', 
+                    'lightning_disturber_count': 'lightningDisturberCount', 
+                    'lightning_noise_count': 'lightningNoiseCount'
+                })
+                
+                # Replace NaN with None
+                df = df.replace({np.nan: None})
+                
+                # Print first few rows (optional)
+                print(df.head())
+                
+                # Define table name
+                table = 'testMetaSchema.tblMasterTable'
+                
+                # Execute database operations
+                execute_values(conn, df, table)
+                
+            
+        except FileNotFoundError:
+            print(f"File not found: {full_path}")
+        except Exception as e:
+            print(f"Error processing file {full_path}: {e}")
+            
     populate_tables(conn)
     conn.close()
 
