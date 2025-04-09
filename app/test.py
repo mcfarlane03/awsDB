@@ -3,6 +3,10 @@ import psycopg2
 import numpy as np 
 import psycopg2.extras as extras 
 import pandas as pd 
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from .env file
+load_dotenv(find_dotenv())  
 
 def execute_values(conn, df, table): 
 
@@ -25,6 +29,51 @@ def execute_values(conn, df, table):
     cursor.close()
 
 def populate_tables(conn):
+
+    weather_station_insert = """
+        INSERT INTO testmetaschema.tblweatherstation (
+            stationid, lastsync, consbatteryvoltage, rxcheckpercent, txbatterystatus, 
+            referencevoltage, supplyvoltage, altitude, latitude, longitude, parish, 
+            piip, localmqtt, remotemqtt, pistate, fanstate, sleepmode
+        )
+        SELECT DISTINCT 
+            mt.stationid, 
+            FIRST_VALUE(mt.timestamp) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.consbatteryvoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.rxcheckpercent) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.txbatterystatus) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.referencevoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.supplyvoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.altitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.latitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.longitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.parish) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.piip) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.localmqtt) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.remotemqtt) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.pistate) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.fanstate) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.sleepmode) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC)
+        FROM testmetaschema.tblmastertable mt
+        ON CONFLICT (stationid) DO UPDATE SET
+            lastsync = EXCLUDED.lastsync,
+            consbatteryvoltage = EXCLUDED.consbatteryvoltage,
+            rxcheckpercent = EXCLUDED.rxcheckpercent,
+            txbatterystatus = EXCLUDED.txbatterystatus,
+            referencevoltage = EXCLUDED.referencevoltage,
+            supplyvoltage = EXCLUDED.supplyvoltage,
+            altitude = EXCLUDED.altitude,
+            latitude = EXCLUDED.latitude,
+            longitude = EXCLUDED.longitude,
+            parish = EXCLUDED.parish,
+            piip = EXCLUDED.piip,
+            localmqtt = EXCLUDED.localmqtt,
+            remotemqtt = EXCLUDED.remotemqtt,
+            pistate = EXCLUDED.pistate,
+            fanstate = EXCLUDED.fanstate,
+            sleepmode = EXCLUDED.sleepmode;
+    """
+
     insert_statements = [                         
                         """INSERT INTO testmetaschema.tblradiationdata(timestamp, stationid, uv, uvbatterystatus, highuv, highradiation,
                             radiation, maxsolarrad, luminosity)
@@ -68,95 +117,81 @@ def populate_tables(conn):
                         FROM testmetaschema.tblmastertable;"""
                         ]
 
-    alter_statement = """UPDATE testmetaschema.tblweatherstation ws
-                    SET 
-                        lastsync = latest.timestamp,
-                        consbatteryvoltage = latest.consbatteryvoltage,
-                        rxcheckpercent = latest.rxcheckpercent,
-                        txbatterystatus = latest.txbatterystatus,
-                        referencevoltage = latest.referencevoltage,
-                        supplyvoltage = latest.supplyvoltage,
-                        altitude = latest.altitude,
-                        latitude = latest.latitude,
-                        longitude = latest.longitude,
-                        parish = latest.parish,
-                        piip = latest.piip,
-                        localmqtt = latest.localmqtt,
-                        remotemqtt = latest.remotemqtt,
-                        pistate = latest.pistate,
-                        fanstate = latest.fanstate,
-                        sleepmode = latest.sleepmode
-                    FROM (
-                        SELECT * FROM testmetaschema.tblmastertable
-                        WHERE id = (
-                            SELECT MAX(id) 
-                            FROM testmetaschema.tblmastertable 
-                            WHERE stationid = 'UWIT001'
-                        )
-                    ) latest
-                    WHERE ws.stationid = 'UWIT001';"""
+    
     
     cursor = conn.cursor()
-    cursor.execute(alter_statement)
+    cursor.execute("SELECT DISTINCT stationid FROM testmetaschema.tblmastertable;")
+    print(cursor.fetchall())
+    
+    # For each station ID, execute the alter statement
+    print("Populating weather station table...")
+    cursor.execute(weather_station_insert)
     conn.commit()
 
+    print("Populating other tables...")
     for statement in insert_statements:
         cursor.execute(statement)
-    conn.commit()
+        conn.commit()
     cursor.close()
     
 
-def main():
-    conn = psycopg2.connect(
-        host="localhost",
-        database="postgres",
-        user="postgres",
-        password="rozWuk-betkuf"
-    )
-
+def import_data(conn,directory):
     # Assign directory
-    directory = r"C:\Users\Lui\OneDrive\Desktop\metProjCSVs"
+    # directory = r"C:\Users\Lui\OneDrive\Desktop\metProjCSVs"
 
     # Iterate over files in directory
     for name in os.listdir(directory):
-        # Open file from directory
-        full_path = os.path.join(directory, name)
-        print(f"Processing file {full_path}")
+        if name.lower().endswith('.csv'):
+            # Open file from directory
+            full_path = os.path.join(directory, name)
+            print(f"Processing file {full_path}")
 
-        try:
-                # Open file from full path
-                df = pd.read_csv(full_path)
+            try:
+                    # Open file from full path
+                    df = pd.read_csv(full_path)
+                    
+                    # Rename columns
+                    df = df.rename(columns={
+                        'dateTime': 'timestamp', 
+                        'altimeter': 'altitude', 
+                        'ET': 'evapoTrans', 
+                        'lightning_distance': 'lightningDistance', 
+                        'lightning_energy': 'lightningEnergy', 
+                        'lightning_strike_count': 'lightningStrikeCount', 
+                        'lightning_disturber_count': 'lightningDisturberCount', 
+                        'lightning_noise_count': 'lightningNoiseCount'
+                    })
+                    
+                    # Replace NaN with None
+                    df = df.replace({np.nan: None})
+                    
+                    # Print first few rows (optional)
+                    # print(df.head())
+                    
+                    # Define table name
+                    table = 'testMetaSchema.tblMasterTable'
+                    
+                    # Execute database operations
+                    execute_values(conn, df, table)
+                    
                 
-                # Rename columns
-                df = df.rename(columns={
-                    'dateTime': 'timestamp', 
-                    'altimeter': 'altitude', 
-                    'ET': 'evapoTrans', 
-                    'lightning_distance': 'lightningDistance', 
-                    'lightning_energy': 'lightningEnergy', 
-                    'lightning_strike_count': 'lightningStrikeCount', 
-                    'lightning_disturber_count': 'lightningDisturberCount', 
-                    'lightning_noise_count': 'lightningNoiseCount'
-                })
-                
-                # Replace NaN with None
-                df = df.replace({np.nan: None})
-                
-                # Print first few rows (optional)
-                print(df.head())
-                
-                # Define table name
-                table = 'testMetaSchema.tblMasterTable'
-                
-                # Execute database operations
-                execute_values(conn, df, table)
-                
-            
-        except FileNotFoundError:
-            print(f"File not found: {full_path}")
-        except Exception as e:
-            print(f"Error processing file {full_path}: {e}")
-            
+            except FileNotFoundError:
+                print(f"File not found: {full_path}")
+            except Exception as e:
+                print(f"Error processing file {full_path}: {e}")
+
+
+def main():
+    conn = psycopg2.connect(
+        user = os.getenv("DATABASE_USERNAME"),                                      
+        password = os.getenv("DATABASE_PASSWORD"),                                  
+        host = os.getenv("DATABASE_IP"),                                            
+        port = os.getenv("DATABASE_PORT"),                                          
+        database = os.getenv("DATABASE_NAME")   
+    )
+
+    
+    import_data(conn, r"C:\Users\Lui\OneDrive\Desktop\metProjCSVs")
     populate_tables(conn)
     conn.close()
 
