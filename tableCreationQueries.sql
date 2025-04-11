@@ -2,9 +2,8 @@ CREATE SCHEMA IF NOT EXISTS testMetaSchema;
 
 create table if not exists testmetaschema.tblmastertable
 (
-    id                      serial
-        primary key,
-    stationid               varchar(10),
+    id                      serial  primary key,
+    serialnumber            varchar(10),
     timestamp               integer not null,
     interval                integer,
     consbatteryvoltage      real,
@@ -82,13 +81,14 @@ create table if not exists testmetaschema.tblmastertable
     lightningenergy         real,
     lightningnoisecount     real,
     lightningstrikecount    real,
-    pressure                real
+    pressure                real,
+    height                  integer,
+    stationname             varchar(50)
 );
 
 create table if not exists testmetaschema.tblweatherstation
 (
-    stationid          varchar(10) not null
-        primary key,
+    serialnumber       varchar(10) not null,
     lastsync           integer,
     consbatteryvoltage real,
     rxcheckpercent     real,
@@ -96,24 +96,25 @@ create table if not exists testmetaschema.tblweatherstation
     referencevoltage   real,
     supplyvoltage      real,
     altitude           real,
-    latitude           real,
-    longitude          real,
+    latitude           real        not null,
+    longitude          real        not null,
     parish             varchar(20),
     piip               varchar(15),
     localmqtt          varchar(20),
     remotemqtt         varchar(20),
     pistate            boolean,
     fanstate           boolean,
-    sleepmode          boolean
+    sleepmode          boolean,
+    height             integer     not null,
+    stationname        varchar(50),
+    primary key (serialnumber, latitude, longitude, height)
 );
 
 create table if not exists testmetaschema.tblraindata
 (
-    rainid            serial
-        primary key,
+    rainid            serial    primary key,
     timestamp         integer     not null,
-    stationid         varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber      varchar(10) not null,
     rain              real,
     dewpoint          real,
     rainrate          real,
@@ -126,16 +127,19 @@ create table if not exists testmetaschema.tblraindata
     hail              real,
     hailrate          real,
     hailbatterystatus real,
-    forecast          real
+    forecast          real,
+    latitude          real,
+    longitude         real,
+    height            integer,
+    constraint tblraindata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tblwinddata
 (
-    windid            serial
-        primary key,
+    windid            serial    primary key,
     timestamp         integer     not null,
-    stationid         varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber      varchar(10) not null,
     barometer         real,
     windchill         real,
     windgustdir       real,
@@ -143,49 +147,58 @@ create table if not exists testmetaschema.tblwinddata
     windspeed         real,
     winddir           real,
     windrun           real,
-    windbatterystatus real
+    windbatterystatus real,
+    latitude          real,
+    longitude         real,
+    height            integer,
+    constraint tblwinddata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tblsoildata
 (
-    soilid     serial
-        primary key,
-    timestamp  integer     not null,
-    stationid  varchar(10) not null
-        references testmetaschema.tblweatherstation,
-    soilmoist1 real,
-    soilmoist2 real,
-    soilmoist3 real,
-    soilmoist4 real,
-    soiltemp1  real,
-    soiltemp2  real,
-    soiltemp3  real,
-    soiltemp4  real
+    soilid       serial primary key,
+    timestamp    integer     not null,
+    serialnumber varchar(10) not null,
+    soilmoist1   real,
+    soilmoist2   real,
+    soilmoist3   real,
+    soilmoist4   real,
+    soiltemp1    real,
+    soiltemp2    real,
+    soiltemp3    real,
+    soiltemp4    real,
+    latitude     real,
+    longitude    real,
+    height       integer,
+    constraint tblsoildata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tblradiationdata
 (
-    radiationid     serial
-        primary key,
+    radiationid     serial  primary key,
     timestamp       integer     not null,
-    stationid       varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber    varchar(10) not null,
     uv              real,
     uvbatterystatus real,
     highuv          real,
     highradiation   real,
     radiation       real,
     maxsolarrad     real,
-    luminosity      real
+    luminosity      real,
+    latitude        real,
+    longitude       real,
+    height          integer,
+    constraint tblradiationdata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tbltempdata
 (
-    tempid               serial
-        primary key,
+    tempid               serial primary key,
     timestamp            integer     not null,
-    stationid            varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber         varchar(10) not null,
     intemp               real,
     intempbatterystatus  real,
     outtemp              real,
@@ -201,31 +214,43 @@ create table if not exists testmetaschema.tbltempdata
     humidex1             real,
     apptemp              real,
     heatindex            real,
-    cloudbase            real
+    cloudbase            real,
+    latitude             real,
+    longitude            real,
+    height               integer,
+    constraint tbltempdata_tblweatherstation_height_serialnumber_latitude_long
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tblairqualitydata
 (
-    airqualityid serial
-        primary key,
+    airqualityid serial primary key,
     timestamp    integer     not null,
-    stationid    varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber varchar(10) not null,
     so2          real,
-    noise        real
+    noise        real,
+    latitude     real,
+    longitude    real,
+    height       integer,
+    constraint tblairqualitydata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
 
 create table if not exists testmetaschema.tbllightningdata
 (
-    lightningid             serial
-        primary key,
+    lightningid             serial  primary key,
     timestamp               integer     not null,
-    stationid               varchar(10) not null
-        references testmetaschema.tblweatherstation,
+    serialnumber            varchar(10) not null,
     lightningdistance       real,
     lightningdisturbercount real,
     lightningenergy         real,
     lightningnoisecount     real,
-    lightningstrikecount    real
+    lightningstrikecount    real,
+    latitude                real,
+    longitude               real,
+    height                  integer,
+    constraint tbllightningdata_tblweatherstation
+        foreign key (height, serialnumber, latitude, longitude) references testmetaschema.tblweatherstation (height, serialnumber, latitude, longitude)
 );
+
 

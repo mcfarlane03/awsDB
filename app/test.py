@@ -32,30 +32,32 @@ def populate_tables(conn):
 
     weather_station_insert = """
         INSERT INTO testmetaschema.tblweatherstation (
-            stationid, lastsync, consbatteryvoltage, rxcheckpercent, txbatterystatus, 
+            serialnumber, lastsync, consbatteryvoltage, rxcheckpercent, txbatterystatus, 
             referencevoltage, supplyvoltage, altitude, latitude, longitude, parish, 
-            piip, localmqtt, remotemqtt, pistate, fanstate, sleepmode
+            piip, localmqtt, remotemqtt, pistate, fanstate, sleepmode, stationname, height
         )
         SELECT DISTINCT 
-            mt.stationid, 
-            FIRST_VALUE(mt.timestamp) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.consbatteryvoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.rxcheckpercent) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.txbatterystatus) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.referencevoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.supplyvoltage) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.altitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.latitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.longitude) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.parish) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.piip) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.localmqtt) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.remotemqtt) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.pistate) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.fanstate) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC),
-            FIRST_VALUE(mt.sleepmode) OVER (PARTITION BY mt.stationid ORDER BY mt.timestamp DESC)
+            mt.serialnumber, 
+            FIRST_VALUE(mt.timestamp) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.consbatteryvoltage) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.rxcheckpercent) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.txbatterystatus) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.referencevoltage) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.supplyvoltage) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.altitude) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.latitude) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.longitude) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.parish) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.piip) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.localmqtt) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.remotemqtt) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.pistate) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.fanstate) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.sleepmode) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.stationname) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC),
+            FIRST_VALUE(mt.height) OVER (PARTITION BY mt.serialnumber ORDER BY mt.timestamp DESC)
         FROM testmetaschema.tblmastertable mt
-        ON CONFLICT (stationid) DO UPDATE SET
+        ON CONFLICT (serialnumber, latitude, longitude, height) DO UPDATE SET
             lastsync = EXCLUDED.lastsync,
             consbatteryvoltage = EXCLUDED.consbatteryvoltage,
             rxcheckpercent = EXCLUDED.rxcheckpercent,
@@ -71,56 +73,59 @@ def populate_tables(conn):
             remotemqtt = EXCLUDED.remotemqtt,
             pistate = EXCLUDED.pistate,
             fanstate = EXCLUDED.fanstate,
-            sleepmode = EXCLUDED.sleepmode;
+            sleepmode = EXCLUDED.sleepmode,
+            stationname = EXCLUDED.stationname,
+            height = EXCLUDED.height;
     """
 
     insert_statements = [                         
-                        """INSERT INTO testmetaschema.tblradiationdata(timestamp, stationid, uv, uvbatterystatus, highuv, highradiation,
-                            radiation, maxsolarrad, luminosity)
-                        SELECT timestamp, stationid, uv, uvbatterystatus, highuv, highradiation, radiation, maxsolarrad, luminosity
+                        """INSERT INTO testmetaschema.tblradiationdata(timestamp, serialnumber, uv, uvbatterystatus, highuv, highradiation,
+                            radiation, maxsolarrad, luminosity, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, uv, uvbatterystatus, highuv, highradiation, radiation, maxsolarrad, luminosity,
+                            height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
 
-                        """INSERT INTO testmetaschema.tblraindata(timestamp, stationid, rain, dewpoint, rainrate, evapotrans, inhumidity,
-                            outhumidity, leafwet1, leafwet2, rainbatterystatus, hail, hailrate, hailbatterystatus, forecast)
-                        SELECT timestamp, stationid, rain, dewpoint, rainrate, evapotrans, inhumidity, outhumidity, leafwet1,
-                            leafwet2, rainbatterystatus, hail, hailrate, hailbatterystatus, forecast
+                        """INSERT INTO testmetaschema.tblraindata(timestamp, serialnumber, rain, dewpoint, rainrate, evapotrans, inhumidity,
+                            outhumidity, leafwet1, leafwet2, rainbatterystatus, hail, hailrate, hailbatterystatus, forecast, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, rain, dewpoint, rainrate, evapotrans, inhumidity, outhumidity, leafwet1,
+                            leafwet2, rainbatterystatus, hail, hailrate, hailbatterystatus, forecast, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
 
-                        """INSERT INTO testmetaschema.tblsoildata(timestamp, stationid, soilmoist1, soilmoist2, soilmoist3, soilmoist4,
-                            soiltemp1, soiltemp2, soiltemp3, soiltemp4)
-                        SELECT timestamp, stationid, soilmoist1, soilmoist2, soilmoist3, soilmoist4, soiltemp1, soiltemp2,
-                            soiltemp3, soiltemp4
+                        """INSERT INTO testmetaschema.tblsoildata(timestamp, serialnumber, soilmoist1, soilmoist2, soilmoist3, soilmoist4,
+                            soiltemp1, soiltemp2, soiltemp3, soiltemp4, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, soilmoist1, soilmoist2, soilmoist3, soilmoist4, soiltemp1, soiltemp2,
+                            soiltemp3, soiltemp4, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
                         
-                        """INSERT INTO testmetaschema.tbltempdata(timestamp, stationid, intemp, intempbatterystatus, outtemp,
+                        """INSERT INTO testmetaschema.tbltempdata(timestamp, serialnumber, intemp, intempbatterystatus, outtemp,
                             outtempbatterystatus, lowouttemp, highouttemp, leaftemp1, leaftemp2, indewpoint, heatingtemp,
-                            heatingvoltage, humidex, humidex1, apptemp, heatindex, cloudbase)
-                        SELECT timestamp, stationid, intemp, intempbatterystatus, outtemp, outtempbatterystatus, lowouttemp,
+                            heatingvoltage, humidex, humidex1, apptemp, heatindex, cloudbase, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, intemp, intempbatterystatus, outtemp, outtempbatterystatus, lowouttemp,
                             highouttemp, leaftemp1, leaftemp2, indewpoint, heatingtemp, heatingvoltage, humidex, humidex1,
-                            apptemp, heatindex, cloudbase
+                            apptemp, heatindex, cloudbase, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
 
-                        """INSERT INTO testmetaschema.tblwinddata(timestamp, stationid, barometer, windchill, windgustdir, windgust,
-                            windspeed, winddir, windrun, windbatterystatus)
-                        SELECT timestamp, stationid, barometer, windchill, windgustdir, windgust, windspeed, winddir, windrun,
-                            windbatterystatus
+                        """INSERT INTO testmetaschema.tblwinddata(timestamp, serialnumber, barometer, windchill, windgustdir, windgust,
+                            windspeed, winddir, windrun, windbatterystatus, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, barometer, windchill, windgustdir, windgust, windspeed, winddir, windrun,
+                            windbatterystatus, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
 
-                        """INSERT INTO testmetaschema.tblairqualitydata(timestamp, stationid, so2, noise)
-                        SELECT timestamp, stationid, so2, noise
+                        """INSERT INTO testmetaschema.tblairqualitydata(timestamp, serialnumber, so2, noise, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, so2, noise, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;""",
 
-                        """INSERT INTO testmetaschema.tbllightningdata(timestamp, stationid, lightningdistance, lightningdisturbercount,
-                            lightningenergy, lightningnoisecount, lightningstrikecount)
-                        SELECT timestamp, stationid, lightningdistance, lightningdisturbercount,
-                            lightningenergy, lightningnoisecount, lightningstrikecount
+                        """INSERT INTO testmetaschema.tbllightningdata(timestamp, serialnumber, lightningdistance, lightningdisturbercount,
+                            lightningenergy, lightningnoisecount, lightningstrikecount, height, latitude, longitude)
+                        SELECT timestamp, serialnumber, lightningdistance, lightningdisturbercount,
+                            lightningenergy, lightningnoisecount, lightningstrikecount, height, latitude, longitude
                         FROM testmetaschema.tblmastertable;"""
                         ]
 
     
     
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT stationid FROM testmetaschema.tblmastertable;")
+    cursor.execute("SELECT DISTINCT serialnumber FROM testmetaschema.tblmastertable;")
     print(cursor.fetchall())
     
     # For each station ID, execute the alter statement
